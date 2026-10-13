@@ -15,17 +15,9 @@
  */
 static bool my_sensor_channel_supported(struct sensor_chan_spec channel)
 {
-	if(channel.chan_type!="SENSOR_CHAN_AMBIENT_TEMP"){
-		return 1;
-	}
 
-	if (channel.chan_idx!=0)
-	{
-		return 1;
-	}
-	
+	return ((channel.chan_type == SENSOR_CHAN_AMBIENT_TEMP) && (channel.chan_idx ==0));
 
-	return 0; // TODO: complete
 }
 
 static int my_sensor_init(const struct device *dev)
