@@ -3,3 +3,15 @@
 1. Cloner ce dossier dans votre `app_worksapce`
 2. Completez `dummy_driver` et faites votre PR
 3. Completez le driver BME 280 avec la [documentation](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/#technical) et faites votre PR
+
+## Compte rendu TP dummy
+
+La première difficulté qu’on a rencontré a été de comprendre le fonctionnement de Kconfig, notamment l'utilisation des depends on et le lien entre les différents fichiers de configuration (prj.conf, Devicetree, Kconfig). On a eu un peu de mal au début à comprendre le rôle de chacun et comment ils étaient liés.
+
+Ensuite, on a eu des difficultés à comprendre le fonctionnement global du driver, surtout le lien entre le main.c et les fonctions de my_sensor.c. On a notamment dû prendre du temps pour comprendre le rôle de my_sensor_submit() et de my_sensor_decode().
+
+La gestion du buffer n'était pas non plus évidente au départ, surtout pour comprendre comment le timestamp et la température étaient stockés sur 12 octets, puis récupérés avec les fonctions sys_get_le64() et sys_get_le32().
+
+Enfin, la partie qui nous a demandé le plus de recherches a été le décodage en Q31, notamment pour comprendre d'où venaient les différents champs de la structure sensor_q31_data (header, shift, readings) et comment les utiliser. On s’est alors appuyé sur les définitions des structures de Zephyr pour comprendre ce qui était attendu dans les TODO.
+
+Un des derniers points de blocage a été la recherche des Instance-based Devicetree APIs dans Zephyr pour récupérer les propriétés de notre capteur.
