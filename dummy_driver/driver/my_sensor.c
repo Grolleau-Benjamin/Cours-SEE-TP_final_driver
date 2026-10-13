@@ -6,6 +6,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/rtio/rtio.h>
 #include <zephyr/sys/byteorder.h>
+#include <stdint.h>
 
 #include "my_sensor.h"
 
@@ -121,11 +122,15 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	}
 
 	// TODO: decode the value to a sensor_q31_data struct
-	struct sensor_q31_data *decode;
-	decode.shift = MY_SENSOR_Q31_SHIFT;
-	sys_get_le64(buffer, decode.header->base_timestamp_ns);
-	sys_get_le32((uint32_t)buffer + 8, decode.sensor_q31_sample_data->temperature);
-	
+	struct sensor_q31_data *decoded = output;
+
+	uint64_t timestamp_ns = sys_get_le64(buffer);
+    int32_t temperature_mc = (int32_t)sys_get_le32(buffer + 8);
+
+    decoded->header.base_timestamp_ns = timestamp_ns;
+    decoded->header.reading_count = 1;
+    decoded->shift = MY_SENSOR_Q31_SHIFT;
+    decoded->readings[0].timestamp_delta = 0;
 
 	/*
 	 * Conversion millicelsius -> Q31 :
@@ -135,8 +140,9 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	 * Calcul intermediaire sur 64 bits.
 	 */
 	// TODO: complete the conversion and assign to decoded->readings[0].temperature
-	uint64_t q31_temp = decode.sensor_q31_sample_data->temperature * 2^(31 - decode.shift) / 1000;
-	decode->readings[0].temperature = q31_temp;
+	int64_t q31_temp = ((int64_t)temperature_mc * (INT64_C(1) << (31 - MY_SENSOR_Q31_SHIFT))) / 1000;
+
+	decoded->readings[0].temperature = (q31_t)q31_temp;
 
 
 	*fit = 1;
@@ -158,13 +164,15 @@ static int my_sensor_get_decoder(const struct device *dev,
 	ARG_UNUSED(dev);
 
 	// TODO: assign the address of my_sensor_decoder to *decoder
-	*my_sensor_decoder = &decoder;
+	*decoder = &my_sensor_decoder;
 
 	return 0;
 }
 
 static DEVICE_API(sensor, my_sensor_api) = {
 	// TODO: assign the function pointers
+	.submit = my_sensor_submit,
+    .get_decoder = my_sensor_get_decoder,
 };
 
 #define MY_SENSOR_DEFINE(inst)                                                       \
