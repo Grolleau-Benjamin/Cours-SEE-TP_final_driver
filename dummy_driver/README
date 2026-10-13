@@ -19,3 +19,23 @@ west twister -T sample -p qemu_x86/atom --inline-logs
 - Complete the dts bindings
 - Complete the driver code
 - Run the test and validate
+
+# Compte rendu
+## difficultés rencontrés
+Dans un premier temps, nous avons eu du mal a comprendre les attendus du TP. Une fois cette partie eclairée, nous nous sommes heurté a plusieurs problemes listés ci-dessous :
+
+- la rédaction du Kconfig et la conversion des string de noms de fichier décodable en C : "zephyr,tp-sensor" → depends on DT_HAS_ZEPHYR_TP_SENSOR_ENABLED.
+
+- la création des "properties" dans ce fichier .yaml en s'appuyant sur le cours.
+
+- Généralement, nosu avons eu du mal a nous familiariser avec la syntaxe de zephyr.
+
+- comprendre le fonctionnement de "sys_put_le64/32" et "sys_get_le64/32" et la manière de les utiliser. Puis l'adapter au programme :
+
+	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
+	sys_put_le32((uint32_t)temperature_mc, buffer + 8);
+
+- Nous avons eu besoins de passer du temps a explorer les differentes struct pour savoir comment les remplir et les utiliser, comme struct sensor_q31_data ou struct sensor_chan_spec par exemple.
+
+- Enfin, nous n'avions pas compris quel canal de température il fallait utiliser et avions utilisé le canal SENSOR_CHAN_DIE_TEMP au lieu de SENSOR_CHAN_AMBIENT_TEMP. Ce qui a causé une erreur a la lecture de la température avec le code ERROR : -134.
+

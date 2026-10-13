@@ -1,17 +1,17 @@
 menuconfig MY_SENSOR
     bool "Capteur de temperature simulé"
-    // TODO: complete
+    default y
+    depends on DT_HAS_ZEPHYR_TP_SENSOR_ENABLED
+    select SENSOR_ASYNC_API
     help
       Active le driver du capteur simule utilisant Read and Decode.
 
 if MY_SENSOR
-
-config MY_SENSOR_STEP_MC
-    int "Increment de temperature en millicelsius"
-    range 0 10000
-    default 250
-    help
-      Increment applique entre deux lectures.
-      Utiliser 0 pour obtenir une temperature constante.
-
+  config MY_SENSOR_STEP_MC
+      int "Increment de temperature en millicelsius"
+      range 0 10000
+      default 250
+      help
+        Increment applique entre deux lectures.
+        Utiliser 0 pour obtenir une temperature constante.
 endif
