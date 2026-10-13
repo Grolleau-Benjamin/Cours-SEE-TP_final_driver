@@ -79,7 +79,11 @@ static void my_sensor_submit(const struct device *dev, struct rtio_iodev_sqe *re
 	if((data->next_mc + CONFIG_MY_SENSOR_STEP_MC) > cfg->maximum_mc)
 	{
 		data->next_mc = cfg->maximum_mc;
+	}else{
+		data->next_mc =  data->next_mc + CONFIG_MY_SENSOR_STEP_MC;
 	}
+
+
 
 
 
