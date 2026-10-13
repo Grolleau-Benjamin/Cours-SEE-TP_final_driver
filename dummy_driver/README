@@ -19,3 +19,9 @@ west twister -T sample -p qemu_x86/atom --inline-logs
 - Complete the dts bindings
 - Complete the driver code
 - Run the test and validate
+
+## Difficultés rencontrées
+- Problème de compréhension de l'architecture
+- Nous avions du mal à comprendre les outils que l'on avait à disposition (difficulté à naviguer dans les structures)
+- Temps de compréhension long car maîtrise insuffisante du langage C
+

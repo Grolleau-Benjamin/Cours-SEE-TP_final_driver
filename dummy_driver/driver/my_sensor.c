@@ -15,7 +15,7 @@
  */
 static bool my_sensor_channel_supported(struct sensor_chan_spec channel)
 {
-	return 0; // TODO: complete
+	return (channel.chan_type == SENSOR_CHAN_AMBIENT_TEMP && channel.chan_idx == 0);
 }
 
 static int my_sensor_init(const struct device *dev)
@@ -63,6 +63,12 @@ static void my_sensor_submit(const struct device *dev, struct rtio_iodev_sqe *re
 	 * 1. get the temperature
 	 * 2. write the next temp but check the maximum value
 	 */
+		int32_t temperature_mc = data->next_mc;
+		data->next_mc += CONFIG_MY_SENSOR_STEP_MC;
+
+		if (data->next_mc > cfg->maximum_mc) {
+			data->next_mc = cfg->initial_mc;
+		}
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
 	sys_put_le32((uint32_t)temperature_mc, buffer + 8);
@@ -115,6 +121,11 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	}
 
 	// TODO: decode the value to a sensor_q31_data struct
+	struct sensor_q31_data *decode;
+	decode.shift = MY_SENSOR_Q31_SHIFT;
+	sys_get_le64(buffer, decode.header->base_timestamp_ns);
+	sys_get_le32((uint32_t)buffer + 8, decode.sensor_q31_sample_data->temperature);
+	
 
 	/*
 	 * Conversion millicelsius -> Q31 :
@@ -124,6 +135,10 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	 * Calcul intermediaire sur 64 bits.
 	 */
 	// TODO: complete the conversion and assign to decoded->readings[0].temperature
+	uint64_t q31_temp = decode.sensor_q31_sample_data->temperature * 2^(31 - decode.shift) / 1000;
+	decode->readings[0].temperature = q31_temp;
+
+
 	*fit = 1;
 
 	/* Nombre de mesures decodees. */
@@ -132,6 +147,9 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 
 static const struct sensor_decoder_api my_sensor_decoder = {
 	// TODO: assign the function pointers
+	.get_frame_count = my_sensor_get_frame_count,
+	.get_size_info = my_sensor_get_size_info,
+	.decode = my_sensor_decode
 };
 
 static int my_sensor_get_decoder(const struct device *dev,
@@ -140,6 +158,7 @@ static int my_sensor_get_decoder(const struct device *dev,
 	ARG_UNUSED(dev);
 
 	// TODO: assign the address of my_sensor_decoder to *decoder
+	*my_sensor_decoder = &decoder;
 
 	return 0;
 }
