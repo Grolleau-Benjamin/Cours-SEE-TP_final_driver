@@ -19,3 +19,159 @@ west twister -T sample -p qemu_x86/atom --inline-logs
 - Complete the dts bindings
 - Complete the driver code
 - Run the test and validate
+
+# Compte rendu de dummy Driver pour le groupe MEJEBI GOKINI OKBA
+
+## 1. Objectif
+
+L'objectif de cette première partie du TP était de compléter un driver Zephyr simulant un capteur de température.
+
+Le driver devait permettre de :
+
+- déclarer un capteur dans le DeviceTree ;
+- récupérer sa configuration depuis le DeviceTree ;
+- simuler une température ;
+- augmenter cette température entre chaque lecture ;
+- utiliser l'API Sensor de Zephyr avec RTIO ;
+- encoder puis décoder les mesures ;
+- afficher les températures depuis l'application de test.
+
+Le capteur est configuré pour démarrer à 23 °C, avec une température maximale de 25 °C et une augmentation de 0,25 °C entre deux lectures.
+
+## 2. Configuration Kconfig
+
+Le fichier `Kconfig` a été complété afin d'activer le driver et de définir l'incrément de température.
+
+Le paramètre choisi est  "CONFIG_MY_SENSOR_STEP_MC", il permet de choisir l'augmentation de température en millicelsius. Dans le fichier `sample/prj.conf`, la valeur utilisée est : "CONFIG_MY_SENSOR_STEP_MC=250"
+
+Cela correspond à une augmentation de 250 m°C = 0,25 °C
+
+
+L'API asynchrone des capteurs a également dû être activée avec CONFIG_SENSOR_ASYNC_API=y
+
+## 3. DeviceTree
+
+Le binding DeviceTree `zephyr,tp-sensor.yaml` a été complété.
+
+Le compatible utilisé est "zephyr,tp-sensor"
+
+Deux propriétés ont été définies qui sont initial-millicelsius et maximum-millicelsius.
+
+Dans `sample/app.overlay`, le capteur est configuré avec ;
+
+initial-millicelsius = <23000>;
+maximum-millicelsius = <25000>;
+
+La température initiale est donc de 23 °C et la température maximale de 25 °C.
+
+## 4. Fonctionnement du driver
+
+Le fichier `driver/my_sensor.c` a été complété afin d'implémenter les différentes fonctions nécessaires au driver.
+Le driver supporte uniquement le canal est SENSOR_CHAN_AMBIENT_TEMP
+
+Lors d'une lecture, la température courante est placée dans le buffer avec un timestamp.
+
+Le format du buffer est :
+
+Octets 0 à 7  : timestamp en nanosecondes
+Octets 8 à 11 : température en millicelsius
+
+Après chaque mesure, la température suivante est calculée en ajoutant `CONFIG_MY_SENSOR_STEP_MC`.
+
+La température ne doit jamais dépasser la valeur `maximum-millicelsius`.
+
+Le comportement obtenu est donc :
+
+23,00 °C
+23,25 °C
+23,50 °C
+23,75 °C
+24,00 °C
+
+## 5. Décodage des données
+
+Les données stockées dans le buffer sont ensuite décodées par l'API `sensor_decoder_api`.
+
+La température stockée en millicelsius est convertie au format Q31 utilisé par l'API Sensor de Zephyr.
+
+La conversion utilisée est q31 = temperature_mc * 2^(31 - shift) / 1000
+
+avec  shift = 7
+
+Cette conversion permet ensuite à l'application d'afficher la température en degrés Celsius.
+
+## 6. Test avec QEMU
+
+Le résultat obtenu est :
+
+Temperature : 11054999ns (23.000000) deg C
+Temperature : 10021054999ns (23.250000) deg C
+Temperature : 20031054999ns (23.500000) deg C
+Temperature : 30041054999ns (23.750000) deg C
+Temperature : 40051054999ns (24.000000) deg C
+
+
+Les résultats correspondent bien au comportement attendu : la température commence à 23 °C et augmente de 0,25 °C à chaque lecture.
+
+## 7. Difficultés rencontrées
+
+### Activation de l'API Sensor asynchrone
+
+La principale difficulté rencontrée lors de la compilation concernait la fonction sensor_read().
+
+La compilation retournait l'erreur  "error: implicit declaration of function 'sensor_read'
+
+Après analyse du fichier `sensor.h` de Zephyr, nous avons constaté que cette partie de l'API Sensor est disponible lorsque l'option suivante est activée avec CONFIG_SENSOR_ASYNC_API
+
+
+La correction a donc consisté à ajouter dans `sample/prj.conf` :
+
+CONFIG_SENSOR_ASYNC_API=y
+
+Après cette modification et une nouvelle compilation complète, `sensor_read()` a été correctement reconnu.
+
+### Compréhension de l'API RTIO
+
+Une autre difficulté a été de comprendre le fonctionnement de la nouvelle API Sensor utilisée dans ce TP.
+
+L'application utilise :
+
+SENSOR_DT_READ_IODEV(...)
+RTIO_DEFINE(...)
+sensor_read(...)
+sensor_decode(...)
+
+Il a donc fallu comprendre le chemin complet d'une mesure.
+
+### Conversion au format Q31
+
+La conversion de la température vers le format Q31 a également demandé une attention particulière.
+
+La température est d'abord manipulée en millicelsius dans le driver puis convertie au format Q31 lors du décodage.
+
+Un calcul intermédiaire sur 64 bits est utilisé afin d'éviter les problèmes de dépassement lors du décalage binaire.
+
+### Validation avec Twister
+
+Après validation du programme sous QEMU, la commande indiquée dans le README a été testée avec :
+
+west twister -T sample -p qemu_x86/atom --inline-logs
+
+
+Twister a retourné : ERROR - No testsuites found at the specified location...
+
+Le programme fonctionne correctement sous QEMU, mais le dossier `sample` fourni ne contient pas de description de testsuite permettant à Twister de détecter automatiquement un test.
+
+Cette erreur est donc liée à la configuration de la validation Twister et non au fonctionnement du driver lui-même.
+
+## 8. Conclusion
+
+Cette partie du TP a permis de mettre en place un driver Sensor Zephyr complet pour un capteur de température simulé.
+
+Le driver utilise le DeviceTree pour sa configuration, Kconfig pour définir son comportement, RTIO pour effectuer les lectures et l'API de décodage Sensor pour convertir les données au format Q31.
+
+Les essais sous QEMU ont permis de vérifier le fonctionnement du driver avec les valeurs suivantes :
+
+23,00 °C -> 23,25 °C -> 23,50 °C -> 23,75 °C -> 24,00 °C
+
+Le fonctionnement attendu du dummy driver est donc validé
