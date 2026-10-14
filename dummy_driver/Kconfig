@@ -1,6 +1,9 @@
 menuconfig MY_SENSOR
     bool "Capteur de temperature simulé"
-    // TODO: complete
+    depends on SENSOR
+    depends on DT_HAS_ZEPHYR_TP_SENSOR_ENABLED
+    depends on SENSOR_ASYNC_API
+    default y
     help
       Active le driver du capteur simule utilisant Read and Decode.
 
