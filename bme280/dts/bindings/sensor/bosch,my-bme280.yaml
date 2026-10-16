@@ -1,0 +1,3 @@
+description: Capteur Bosch BME280 de temperature, pression et humidite pour le TP
+compatible: "bosch,my-bme280"
+include: [sensor-device.yaml, i2c-device.yaml]

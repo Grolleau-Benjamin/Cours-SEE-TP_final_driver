@@ -1,0 +1,9 @@
+&i2c1 {
+    status = "okay";
+
+    my_sensor: bme280@76 {
+        compatible = "bosch,my-bme280";
+        reg = <0x76>;
+        status = "okay";
+    };
+};

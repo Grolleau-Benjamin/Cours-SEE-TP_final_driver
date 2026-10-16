@@ -1,1 +1,11 @@
-// TODO
+menuconfig MY_SENSOR
+    bool "Capteur Bosch BME280 du TP"
+
+    default y
+    depends on SENSOR && I2C
+    depends on DT_HAS_BOSCH_MY_BME280_ENABLED
+    depends on SENSOR_ASYNC_API
+
+    help
+      Active le driver I2C du BME280 utilisant Read and Decode
+      pour la temperature, la pression et l'humidite.
