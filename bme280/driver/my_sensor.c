@@ -13,6 +13,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/rtio/work.h>
 #include <zephyr/sys/byteorder.h>
+#include <zephyr/device.h>
+#include <zephyr/syscalls/clock.h>
+#include <zephyr/sys/clock.h>
 
 #include "mysensor.h"
 
@@ -22,22 +25,19 @@ LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 
 static inline int mysensor_bus_check(const struct device *dev)
 {
-	/* TODO : vérifier que le bus I2C est prêt. */
-	return -ENOSYS;
+	return i2c_is_ready_dt(dev->i2c);
 }
 
 static inline int mysensor_reg_read(const struct device *dev,
 									uint8_t start, uint8_t *buf, int size)
 {
-	/* TODO : lire le registre a l'aide de l'i2c present dans dev->cfg */
-	return -ENOSYS;
+	return i2c_burst_read_dt(dev->i2c, start, buf, size);
 }
 
 static inline int mysensor_reg_write(const struct device *dev,
 									 uint8_t reg, uint8_t val)
 {
-	/* TODO : écrire val dans le registre reg a l'aide de l'i2c present dans dev->cfg */
-	return -ENOSYS;
+	return i2c_reg_write_byte(dev, dev->i2c->addr, &reg, val);
 }
 
 static int mysensor_wait_until_ready(const struct device *dev,
@@ -48,7 +48,19 @@ static int mysensor_wait_until_ready(const struct device *dev,
 	 * et IM_UPDATE de MYSENSOR_REG_STATUS soient à zéro.
 	 * utiliser un sleep coherent entre les lectures du registre.
 	 */
-	return -ENOSYS;
+	char returnedValue = -1;
+	
+	k_timepoint_t timepoint = sys_timepoint_calc(timeout);
+
+	while (sys_timepoint_expired(timepoint))
+	{
+		mysensor_reg_read(dev, MYSENSOR_REG_STATUS, &returnedValue, 1);
+		if (returnedValue & MYSENSOR_STATUS_MEASURING != 0 || returnedValue & MYSENSOR_STATUS_IM_UPDATE != 0)
+			k_sleep(K_MSEC(3));
+		else 
+			return 1;
+	}
+	return -1;
 }
 
 static int mysensor_attr_set(const struct device *dev,
@@ -67,6 +79,9 @@ static int mysensor_attr_set(const struct device *dev,
  */
 static int mysensor_read_calibration(const struct device *dev)
 {
+	//On ne comprend pas comment "recuperer les parametres". Est ce que les valeurs sont a renvoyer dans le composant depuis le dev->data ?
+	//on ne comprend pas le registre dans lequel on doit ecrire. 
+	//La datasheet a bien un calibration data sur 42 bits mais ca ne correspond pas à la somme de nos datas a pousser (16bits *3 + 16bits*9 + 8*6)
 	return -ENOSYS;
 }
 
@@ -77,7 +92,20 @@ static int mysensor_read_raw(const struct device *dev,
 	 * TODO : attendre que le capteur soit prêt, lire les 8 octets
 	 * depuis MYSENSOR_REG_PRESS_MSB et extraire les trois valeurs.
 	 */
-	return -ENOSYS;
+	char readValues[8] = {};
+	mysensor_wait_until_ready(dev, K_FOREVER);
+	if (!mysensor_reg_read(dev, MYSENSOR_REG_PRESS_MSB, readValues, 8))
+		return -1;
+	
+	uint32_t pressure = ((uint32_t)buffer[0] << 12) | ((uint32_t)buffer[1] << 4 | (buffer[2] >> 4);
+	uint32_t temperature = ((uint32_t)buffer[3] << 12) | ((uint32_t)buffer[4] << 4 | (buffer[5] >> 4);
+	uint32_t humidity = ((uint32_t)buffer[6] << 8) | buffer[7];
+
+	raw->pressure = pressure;
+	raw->temperature = temperature;
+	raw->humidity = humidity;
+
+	return 1;
 }
 
 static bool mysensor_channel_supported(struct sensor_chan_spec channel)
@@ -218,6 +246,7 @@ static int mysensor_decode(const uint8_t *buffer,
 	if (!mysensor_channel_supported(channel))
 	{
 		return -EINVAL;
+
 	}
 
 	if (*fit != 0 || max_count == 0)
@@ -235,21 +264,28 @@ static int mysensor_decode(const uint8_t *buffer,
 		 * TODO : lire la température brute depuis le buffer.
 		 * et la mettre dans milli_value
 		 */
-		return -ENOSYS;
+		milli_value = (uint32_t)buffer[*fit] << 24 | (uint32_t)buffer[(*fit+1)] << 16 | (uint32_t)buffer[(*fit+2)] << 8 | buffer[(*fit+3)];
+		decoded->readings[0].temperature = mysensor_to_q31(milli_value);
+		return 1;
 
 	case SENSOR_CHAN_PRESS:
 		/*
 		 * TODO : lire la pression brute depuis le buffer.
 		 * et la mettre dans milli_value
 		 */
-		return -ENOSYS;
+
+		 milli_value = (uint32_t)buffer[*fit] << 24 | (uint32_t)buffer[(*fit+1)] << 16 | (uint32_t)buffer[(*fit+2)] << 8 | buffer[(*fit+3)];
+		decoded->readings[0].pressure = mysensor_to_q31(milli_value);
+		return 1;
 
 	case SENSOR_CHAN_HUMIDITY:
 		/*
 		 * TODO : lire l'humidité brute depuis le buffer.
 		 * et la mettre dans milli_value
 		 */
-		return -ENOSYS;
+		milli_value = (uint32_t)buffer[*fit] << 24 | (uint32_t)buffer[(*fit+1)] << 16 | (uint32_t)buffer[(*fit+2)] << 8 | buffer[(*fit+3)];
+		decoded->readings[0].humidity = mysensor_to_q31(milli_value);
+		return 1;
 
 	default:
 		return -ENOTSUP;

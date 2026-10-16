@@ -6,16 +6,25 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/rtio/rtio.h>
 #include <zephyr/sys/byteorder.h>
+#include <zephyr/drivers/sensor_data_types.h>
 
 #include "my_sensor.h"
 
+#define MC_DEFAULT 23000
+#define MC_MAXIMUM 25000
 /**
  * support only the temp channel
  * https://docs.zephyrproject.org/latest/doxygen/html/group__sensor__interface.html#gaaa1b502bc029b10d7b23b0a25ef4e934
  */
 static bool my_sensor_channel_supported(struct sensor_chan_spec channel)
 {
-	return 0; // TODO: complete
+
+	if(channel.chan_type == SENSOR_CHAN_AMBIENT_TEMP){
+		if(channel.chan_idx == 0){
+			return true;
+		}
+	}
+	return false; 
 }
 
 static int my_sensor_init(const struct device *dev)
@@ -63,6 +72,15 @@ static void my_sensor_submit(const struct device *dev, struct rtio_iodev_sqe *re
 	 * 1. get the temperature
 	 * 2. write the next temp but check the maximum value
 	 */
+	if ((data->next_mc + CONFIG_MY_SENSOR_STEP_MC) > cfg->maximum_mc)
+	{
+		printk("Maximum temp reached\n");
+		return;
+	}
+	else
+		data->next_mc += CONFIG_MY_SENSOR_STEP_MC;
+
+	int32_t temperature_mc = data->next_mc;
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
 	sys_put_le32((uint32_t)temperature_mc, buffer + 8);
@@ -115,7 +133,6 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	}
 
 	// TODO: decode the value to a sensor_q31_data struct
-
 	/*
 	 * Conversion millicelsius -> Q31 :
 	 *
@@ -123,8 +140,13 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	 *
 	 * Calcul intermediaire sur 64 bits.
 	 */
+	struct sensor_q31_data q31 = {.shift = 2};
+	q31.readings[0].temperature = buffer[*fit] * 1 << (31 - q31.shift) / 1000;
+	q31.header.reading_count++;
+	
 	// TODO: complete the conversion and assign to decoded->readings[0].temperature
 	*fit = 1;
+	output = &q31; 
 
 	/* Nombre de mesures decodees. */
 	return 1;
@@ -153,6 +175,8 @@ static DEVICE_API(sensor, my_sensor_api) = {
                                                                                      \
 	static const struct my_sensor_config my_sensor_config_##inst = {                 \
 		/* TODO : assign the properties from the device tree to the config struct */ \
+		.initial_mc = DT_INST_PROP(inst, initial_millicelsius), \
+		.maximum_mc = DT_INST_PROP(inst, maximum_millicelsius),                                                    \
 	};                                                                               \
                                                                                      \
 	SENSOR_DEVICE_DT_INST_DEFINE(inst, my_sensor_init, NULL, &my_sensor_data_##inst, \

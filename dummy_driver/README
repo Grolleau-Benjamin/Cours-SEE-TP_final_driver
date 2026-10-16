@@ -19,3 +19,28 @@ west twister -T sample -p qemu_x86/atom --inline-logs
 - Complete the dts bindings
 - Complete the driver code
 - Run the test and validate
+
+
+COMPTE RENDU Dylan GIMENEZ Gweltaz BURLOT
+
+La première étape à été de modifier le fichier .dts ainsi que Kconfig. Il a fallut rajouter la partie "include" les "properties" et la partie "compatible". Ces parties permettent de faire le lien entre la configuration matériel et logicielle du driver via une variable crée à la compilation [DT_HAS_<VENDOR>_<DEVICE>_ENABLED].
+L'app overlay permet de définir les valeurs par defaut décrites dans la partie properties du .dts .
+
+Il est encore difficile de déterminer exactement ce qui est optionnel de ce qui est obligatoir, la syntaxe est bien définie sur les slides mais nous trouvons que cela manque de contexte malgré les quelques exercices précedemment faits. 
+
+Programmation du Driver dummy
+LA premiere fonction du .C est "my_sensor_channel_supported()". 
+Nous pensons qu'il s'agit d'une fonction permettant de déterminer si le "channel" utilisé (qui représente la nature de la mesure, ici une température). Donc si le channel vaut SENSOR_CHAN_AMBIENT_TEMP alors on renvoie True.
+
+On a modifié le "my_sensor_define" en initialisant la configuration de la valeur par défaut et la valeur max. Ne sachant comment accéder aux valeurs déjà initialisées dans le .dts, on a crée des "#define" pour les valeurs.
+
+Nous avons essayé dans "my_sensor_submit" d'incrémenter le "My_sensor_step" dans my sensor data, en vérifiant que celui ci n'eccède pas la valeur max définie au préalable dans la config. Cependant, nous ne sommes pas sûrs de nous car la fonction submit renvoie un "void" et la data est copiée depuis un "const" donc, on ne sait comment retourner la valeur incrémentée.
+De plus, nous ne savons pas comment utiliser la fonction, ni à qui on submit quoi. Nous ne savons pas qui l'utilise.
+
+Nous n'avons pas compris la suite des étapes dans les fonctions "sensor_decode_api" / "get_decoder" / "my_sensor_decode". Cela nous aurait aidé si un texte permettant d'indiquer le contexte ou ce que la fonction est censée réaliser en commentaire en préambule de fonction. 
+ex : 
+/* This function is used to print toto to stderr */
+void toto ()
+{
+    //TODO
+}

@@ -1,6 +1,19 @@
 description: Capteur de temperature simule pour un TP
 
-# TODO: complete compatible and include
+compatible: "bosh,my_bme280"
+
+include: [sensor-device.yaml, i2c-device.yaml]
 
 properties:
-  # TODO: add the propeties you need
+  initial-millicelsius:
+    type: int
+    default: 23000
+    description: |
+      Short description of the property
+
+  maximum-millicelsius:
+    type: int
+    default: 25000
+    description: |
+      Short description of the property
+
