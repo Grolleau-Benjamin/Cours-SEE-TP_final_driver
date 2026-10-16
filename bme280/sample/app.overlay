@@ -1,9 +1,1 @@
-/ {
-    my_sensor: simulated-temperature {
-        compatible = "zephyr,tp-sensor";
-        status = "okay";
 
-        initial-millicelsius = <23000>;
-        maximum-millicelsius = <25000>;
-    };
-};

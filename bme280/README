@@ -8,3 +8,16 @@
 west build -p always -b <board> sample
 west build -t run
 ```
+
+# Compte rendu
+## difficultés rencontrés
+Pas pu atteindre le bout du TP, trop limité dans le temps, avec un retard depuis le TP dummy driver (donc 4H, pas 6H). Encore une fois, beaucoup de temps est passé à comprendre comment faire ce que l'on souhaite faire, avec pas mal de temps perdu dans la documentation de Zephyr, les exemples précédants n'étant pas suffisants ou assez expliqués pour tout voir et retenir.
+
+Difficultés :
+- rédaction des fichiers de paramétrage du workspace (app.overlay -> du coup pas fait, manque de compréhension sur ce à quoi c'est sensé ressembler, le dummy driver n'étant pas un bon premier exemple pour un vrai capteur ; Kconfig, prj.conf etc)
+
+- la gestion (ou tentative de) des erreurs en vérifiant les sorties de fonction constamment, pas utile pour un résultat fonctionel en plus
+
+- la syntaxe Zephyr/autre avec le doc pas vraiment rapide à lire pour trouver les objets à utiliser et surtout les fonctions qui les utilisent (k_ticks_to_ms_floor64 pour passer du timeout en tick dur à prendre à main en ms, ou K_SECONDS)
+
+- Du coup pas le temps de compiler ou de tester, donc pas le temps de voir si il y a des erreurs, etc.

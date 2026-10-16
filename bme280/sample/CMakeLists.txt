@@ -9,6 +9,6 @@ list(APPEND EXTRA_ZEPHYR_MODULES "${MY_SENSOR_MODULE_DIR}")
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
-project(my_sensor_sample)
+project(my_bme280)
 
 target_sources(app PRIVATE src/main.c)
