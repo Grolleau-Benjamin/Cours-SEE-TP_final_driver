@@ -1,1 +1,19 @@
-// TODO
+menuconfig MY_BME280
+    bool "Capteur de temperature BME280"
+    default y
+    depends on DT_HAS_BOSCH_MY_BME280_ENABLED
+    select SENSOR_ASYNC_API
+    help
+      Active le driver du capteur simule utilisant Read and Decode.
+
+if MY_BME280
+
+config MY_BME280_STEP_MC
+    int "Increment de temperature en millicelsius"
+    range 0 65000
+    default 10
+    help
+      Increment applique entre deux lectures.
+      Utiliser 0 pour obtenir une temperature constante.
+
+endif

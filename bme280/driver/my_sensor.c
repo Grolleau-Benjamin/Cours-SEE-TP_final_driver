@@ -14,7 +14,7 @@
 #include <zephyr/rtio/work.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "mysensor.h"
+#include "my_sensor.h"
 
 LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -23,21 +23,28 @@ LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 static inline int mysensor_bus_check(const struct device *dev)
 {
 	/* TODO : vérifier que le bus I2C est prêt. */
-	return -ENOSYS;
+	if (i2c_is_ready_dt(&dev->config->i2c))
+	{
+		return 0;
+	}
+	else
+	{
+		return -ENODEV;
+	}
 }
 
 static inline int mysensor_reg_read(const struct device *dev,
 									uint8_t start, uint8_t *buf, int size)
 {
 	/* TODO : lire le registre */
-	return -ENOSYS;
+	return i2c_burst_read_dt(&dev->config->i2c, start, buf, size);
 }
 
 static inline int mysensor_reg_write(const struct device *dev,
 									 uint8_t reg, uint8_t val)
 {
 	/* TODO : écrire val dans le registre reg. */
-	return -ENOSYS;
+	return i2c_reg_write_byte_dt(&dev->config->i2c, reg, val);
 }
 
 static int mysensor_wait_until_ready(const struct device *dev,
@@ -47,7 +54,14 @@ static int mysensor_wait_until_ready(const struct device *dev,
 	 * TODO : attendre avec timeout que les bits MEASURING
 	 * et IM_UPDATE de MYSENSOR_REG_STATUS soient à zéro.
 	 */
-	return -ENOSYS;
+	int status_value = i2c_reg_read_byte_dt(&dev->config->i2c, MYSENSOR_REG_STATUS, &status);
+	int ret;
+	while(((status_value & (MYSENSOR_STATUS_MEASURING | MYSENSOR_STATUS_IM_UPDATE)) != 0) && (timeout.ticks > 0)){
+		ret = i2c_reg_read_byte_dt(&dev->config->i2c, MYSENSOR_REG_STATUS, &status);
+		k_msleep(3);
+	}
+	if(ret)return 0;
+	return -ETIMEDOUT;
 }
 
 static int mysensor_attr_set(const struct device *dev,
@@ -65,7 +79,18 @@ static int mysensor_read_raw(const struct device *dev,
 	 * TODO : attendre que le capteur soit prêt, lire les 8 octets
 	 * depuis MYSENSOR_REG_PRESS_MSB et extraire les trois valeurs.
 	 */
-	return -ENOSYS;
+	if(mysensor_wait_until_ready(dev, K_MSEC(MYSENSOR_START_UP_TIME_MS)) != 0){
+		return -ETIMEDOUT;
+	}
+	uint8_t buffer[8];
+	int ret = mysensor_reg_read(dev, MYSENSOR_REG_PRESS_MSB, buffer, 8);
+	if(ret != 0){
+		return ret;
+	}
+	raw->pressure = buffer[0] << 8 | buffer[1];
+	raw->temperature = buffer[3] << 8 | buffer[4];
+	raw->humidity = buffer[6] << 8 | buffer[7];
+	return 0;
 }
 
 static bool mysensor_channel_supported(struct sensor_chan_spec channel)
@@ -220,18 +245,21 @@ static int mysensor_decode(const uint8_t *buffer,
 		/*
 		 * TODO : lire la température brute.
 		 */
+		milli_value = raw->temperature;
 		return -ENOSYS;
 
 	case SENSOR_CHAN_PRESS:
 		/*
 		 * TODO : lire la pression brute.
 		 */
+		milli_value = raw->pressure;
 		return -ENOSYS;
 
 	case SENSOR_CHAN_HUMIDITY:
 		/*
 		 * TODO : lire l'humidité brute.
 		 */
+		milli_value = raw->humidity;
 		return -ENOSYS;
 
 	default:
@@ -251,6 +279,9 @@ static int mysensor_decode(const uint8_t *buffer,
 
 static const struct sensor_decoder_api mysensor_decoder_api = {
 	// TODO
+	.decode = mysensor_decode,
+	.get_size_info = mysensor_get_size_info,
+	.get_frame_count = mysensor_get_frame_count,
 };
 
 static int mysensor_get_decoder(
@@ -270,11 +301,54 @@ static int mysensor_init(const struct device *dev)
 	 * puis configurer CTRL_HUM, CONFIG et CTRL_MEAS.
 	 * Respecter les délais et propager les erreurs.
 	 */
-	return -ENOSYS;
+	uint8_t id;
+	int ret;
+
+	ret = mysensor_bus_check(dev);
+	if(ret != 0){
+		return ret;
+	}
+
+	ret = mysensor_reg_read(dev, MYSENSOR_REG_ID, &id, 1);
+	if(ret != 0){
+		return ret;
+	}
+
+	ret = mysensor_reg_write(dev, MYSENSOR_REG_RESET, MYSENSOR_CMD_SOFT_RESET);
+	if(ret != 0){
+		return ret;
+	}
+	k_msleep(MYSENSOR_START_UP_TIME_MS);
+
+	ret = mysensor_wait_until_ready(dev, K_MSEC(10));
+	if (ret != 0)
+	{
+		return ret;
+	}
+
+	ret = mysensor_reg_write(dev, MYSENSOR_REG_CTRL_HUM, MYSENSOR_HUMIDITY_OVER);
+	if(ret != 0){
+		return ret;
+	}
+
+	ret = mysensor_reg_write(dev, MYSENSOR_REG_CONFIG, MYSENSOR_CONFIG_VAL);
+	if(ret != 0){
+		return ret;
+	}
+
+	ret = mysensor_reg_write(dev, MYSENSOR_REG_CTRL_MEAS, MYSENSOR_CTRL_MEAS_VAL);
+	if(ret != 0){
+		return ret;
+	}
+
+	return 0;
 }
 
 static DEVICE_API(sensor, mysensor_driver_api) = {
 	// TODO
+	.submit = mysensor_submit,
+	.get_decoder = mysensor_get_decoder,
+
 };
 
 #define MYSENSOR_INIT(n)                                        \

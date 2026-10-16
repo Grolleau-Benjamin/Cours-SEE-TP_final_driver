@@ -42,12 +42,31 @@
 struct my_bme280_config
 {
 	// TODO
+	struct i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
 struct my_bme280_data
 {
 	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
+	uint16_t dig_t1;
+	int16_t dig_t2;
+	int16_t dig_t3;
+	uint16_t dig_p1;
+	int16_t dig_p2;
+	int16_t dig_p3;
+	int16_t dig_p4;
+	int16_t dig_p5;
+	int16_t dig_p6;
+	int16_t dig_p7;
+	int16_t dig_p8;
+	int16_t dig_p9;
+	uint8_t dig_h1;
+	int16_t dig_h2;
+	uint8_t dig_h3;
+	int16_t dig_h4;
+	int16_t dig_h5;
+	int8_t dig_h6;
 };
 
 #endif

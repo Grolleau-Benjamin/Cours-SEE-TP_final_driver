@@ -1,0 +1,9 @@
+/ {
+    my_bme280: simulated-temperature {
+        compatible = "bosch,my-bme280";
+        status = "okay";
+
+        initial-millicelsius = <0>;
+        maximum-millicelsius = <65000>;
+    };
+};
