@@ -1,10 +1,27 @@
-# Dummy driver sample
+# TP Final — Creation de driver
 
-> [!WARNING]
-> Ce dossier est a cloner dans un workspace Zephyr
+1. Cloner ce dossier dans votre `app_worksapce`
+2. Completez `dummy_driver` et faites votre PR
+3. Completez le driver BME 280 avec la [documentation](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/#technical) et faites votre PR
 
-## Run
-```
-west build -p always -b <board> sample
-west build -t run
-```
+## Compte rendu TP dummy
+
+La première difficulté qu’on a rencontré a été de comprendre le fonctionnement de Kconfig, notamment l'utilisation des depends on et le lien entre les différents fichiers de configuration (prj.conf, Devicetree, Kconfig). On a eu un peu de mal au début à comprendre le rôle de chacun et comment ils étaient liés.
+
+Ensuite, on a eu des difficultés à comprendre le fonctionnement global du driver, surtout le lien entre le main.c et les fonctions de my_sensor.c. On a notamment dû prendre du temps pour comprendre le rôle de my_sensor_submit() et de my_sensor_decode().
+
+La gestion du buffer n'était pas non plus évidente au départ, surtout pour comprendre comment le timestamp et la température étaient stockés sur 12 octets, puis récupérés avec les fonctions sys_get_le64() et sys_get_le32().
+
+Enfin, la partie qui nous a demandé le plus de recherches a été le décodage en Q31, notamment pour comprendre d'où venaient les différents champs de la structure sensor_q31_data (header, shift, readings) et comment les utiliser. On s’est alors appuyé sur les définitions des structures de Zephyr pour comprendre ce qui était attendu dans les TODO.
+
+Un des derniers points de blocage a été la recherche des Instance-based Devicetree APIs dans Zephyr pour récupérer les propriétés de notre capteur.
+
+## Compte rendu TP driver BME280
+
+Pour ce TP, on s’est concentrés plus sur la lecture de la doc BME280 que sur l'intégration sur Zephyr (on a perdu beaucoup de temps sur la compréhension des données, registres etc...). La première difficulté a été de reconstruire les mesures brutes à partir des octets lus en I²C, notamment pour la température et la pression codées sur 20 bits.
+
+On a aussi eu du mal à comprendre la récupération des coefficients de calibration, et les calculs qui suivent. Pour la compensation, on a repris les fonctions fournies dans la documentation Bosch en les adaptant aux structures du driver. On a aussi eu du mal à comprendre comment utiliser le t_fine.
+
+Du mal avec le timeout aussi pour attente de dispo.
+
+Par manque de temps, on a pas terminé les fichiers nécessaires à la compilation et test compet (avec sortie pour afficher les valeurs, etc...). Le driver n’a donc pas pu être validé sur notre carte.
