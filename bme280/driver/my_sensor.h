@@ -39,9 +39,14 @@
 #define MYSENSOR_Q31_SHIFT 0 // TODO: definir un shift
 #define MYSENSOR_FRAME_SIZE 20
 
+// TODO: define a raw struct `struct mysensor_raw` that will carry the raw values read from the sensor (temperature, pressure, humidity)
+
 struct my_bme280_config
 {
 	// TODO
+	/**
+	 * i2c bus device
+	 */
 };
 
 /* Etat propre a chaque instance (mutable) */
