@@ -1,6 +1,6 @@
 description: Capteur de temperature simule pour un TP
 
-// TODO: complete compatible and include
+# TODO: complete compatible and include
 
 properties:
-  // TODO: add 2 properties: initial-millicelsius and maximum-millicelsius
+  # TODO: add the propeties you need
