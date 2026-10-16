@@ -1,1 +1,6 @@
-// TODO
+config MY_SENSOR
+    bool "Capteur de température"
+    default y 
+    depends on DT_HAS_BOSH_MY_BME280_ENABLED
+    help
+      Active le driver du capteur BME280.

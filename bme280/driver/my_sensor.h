@@ -36,18 +36,40 @@
 #define MYSENSOR_CONFIG_VAL (MYSENSOR_STANDBY | MYSENSOR_FILTER | 0x00)
 #define MYSENSOR_CTRL_MEAS_VAL (MYSENSOR_PRESS_OVER | MYSENSOR_TEMP_OVER | MYSENSOR_MODE_NORMAL)
 
-#define MYSENSOR_Q31_SHIFT 0 // TODO: definir un shift
+#define MYSENSOR_Q31_SHIFT 11 // TODO: definir un shift
 #define MYSENSOR_FRAME_SIZE 20
 
-struct my_bme280_config
-{
-	// TODO
+struct my_bme280_config {
+	//TO DO
+    struct i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
 struct my_bme280_data
 {
 	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
+    uint16_t dig_t1;
+    int16_t  dig_t2, dig_t3;
+
+    uint16_t dig_p1;
+    int16_t  dig_p2, dig_p3, dig_p4, dig_p5, dig_p6, dig_p7, dig_p8, dig_p9;
+
+	uint8_t  dig_h1, dig_h3;
+	int16_t  dig_h2, dig_h4, dig_h5;
+	int8_t   dig_h6;
+
+    //variable globale ??
+	//partagée par les 3  
+    int32_t  t_fine;
+    int32_t temp_milli;
+    int32_t press_milli;
+    int32_t hum_milli;
+};
+
+struct mysensor_raw {
+    int32_t temperature;
+    int32_t pressure;
+    int32_t humidity;
 };
 
 #endif

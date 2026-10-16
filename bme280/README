@@ -8,3 +8,84 @@
 west build -p always -b <board> sample
 west build -t run
 ```
+
+
+COMPTE RENDU
+
+L'objectif de ce TP est de créer un driver entier.
+
+Le travail est réalisé en trois parties :
+
+- **P1 : DeviceTree / DTS**
+- **P2 : Kconfig**
+- **P3 : Driver**
+
+## P1 — DeviceTree
+L'idée est de commencer cette fois-ci par le .yaml, le Kconfig étant vierge. Grâce au nom du fichier, nous savons qu'il faut remplir le compatible avec vendor=bosh et device=my_bme280.
+De plus, cette fois-ci la carte nécessite de communiquer par I2C donc on ajoute i2c-device.yaml.
+
+## P2 — Kconfig
+Comme dit précédemment, le Kconfig étant vierge, il revient à nous de trouver l'option permettant d'activer le driver BME280.
+
+On déclare un menuconfig avec la dépendance DT_HAS_BOSH_MY_BME280_ENABLED. Elle permet d’activer cette option que si un périphérique correspondant au compatible est présent.
+
+## P3 — my_sensor.h
+Passons désormais au fichier my_sensor.h. 
+
+- Pour remplir le "To Do" présent dans le struct my_bme280_config, nous avons cherché des éléments fixés une fois pour toutes, et provenant du devicetree. En regardant comment cette structure est utilisée dans le .c, nous avons constaté qu'elle devait contenir les informations liées au bus I²C. On ajoute donc struct i2c_dt_spec i2c, qui sera ensuite rempli avec I2C_DT_SPEC_INST_GET(n).
+
+- Pour le struct my_bme280_data, une recherche dans la datasheet permet de trouver le tableau 16, qui montre l’ensemble des paramètres de calibration utilisés pour l’humidité, la température et la pression. Nous les avons donc repris dans la structure, en s'adaptant au type C correspondant à celui indiqué dans la datasheet (signed/unsigned char/short).
+
+- MYSENSOR_Q31_SHIFT définit le nombre de bits de décalage utilisé lors de la conversion des valeurs du capteur vers le format Q31. Lors du TP dummy_driver, il était indiqué "shift = 7 couvre les temperatures de ce TP : 0 a 100 degres.". 
+
+En se renseignant, on découvre que les plages de valeurs des différentes grandeurs sont : 
+    Température : −40 à +80°C ;
+    Humidité : 0 à 100% ;
+    Pression : 300 à 1100hPa.
+    
+La plus grande valeur étant "1100", soit 10001001100_(2), notre Shift devra faire 11.
+
+## P3 — my_sensor.c
+- Pour les premières fonctions, la démarche à suivre est la même. On commence par récupérer la configuration du capteur et on la mets dans un pointeur appelé config. Ensuite, en fonction de l'attendu, on cherche la fonction adéquate dans "https://docs.zephyrproject.org/latest/doxygen/html/group__i2c__interface.html" :
+    - mysensor_bus_check -> i2c_is_ready_dt;
+    - mysensor_reg_read -> i2c_burst_read_dt ; (et non i2c_reg_read_byte car on veut récupérer plusieurs octets. Déductible grâce aux données en argument étant uint8_t *buf int size)
+    - mysensor_reg_write -> i2c_reg_write_byte_dt (ici on ne souhaite écrire que 1 octet donc on utilise pas) ;
+
+Pour mysensor_wait_until_ready, on doit attendre que les bits MEASURING et IM_UPDATE de STATUS soient à 0, avec un timeout. Pour ça on relit le registre STATUS avec mysensor_reg_read (qu'on a déjà écrite) tant qu'un des deux bits est à 1 :
+  - On lit 1 octet à l'adresse MYSENSOR_REG_STATUS, dans une variable status ;
+  - On teste les bits avec un masque & ;
+  - On note le moment du départ avec k_uptime_ticks(), avec une manière similaire à vue durant le tp;
+  - On met un k_sleep(K_MSEC(1)) dans la boucle pour ne pas relire en continu.
+
+Dans al fonction DEVICE_API, on vient préciser les fonctions du driver qui correspondent à l'API Sensor (car indiqué dans les arguments). Dans la doc zephyr on vient donc regarder les champs de struct sensor_driver_api et leur statut REQ ou OPT :
+    -  REQ indique les fonctions obligatoires que le driver doit fournir, elles seront forcément indiquées.
+    - Les OPT sont facultatifs, mais on les ajoute si notre driver implémente la fonctionnalité correspondante. Nous avons donc mis .attr_set,.get_decoder,.submit qui étaient les fonctions déjà implémentées.
+https://docs.zephyrproject.org/latest/doxygen/html/structsensor__driver__api.html
+
+- Pour le switch case. Le switch choisit quelle donnée lire, et le buffer + 8/12/16 indique où cette donnée se trouve. Avec les informations brutes demandées, on nous donne la structure du buffer dans le code (déjà faites) donc on commence les lectures à 8, puis 12, puis 16.
+
+- Pour mysensor_get_calib, on a besoin des paramètres de calibration (dig_T, dig_P, dig_H) vu qu'ils sont dans la struct my_bme280_data. Dans la datasheet, le tableau 16 (déjà utilisé pour le .h) donne les adresses des registres où ils se trouvent. On les lit avec mysensor_reg_read (par blocs, car il y en a plusieurs à la suite), puis on les range dans dev->data. Pour dig_H4 et dig_H5, la datasheet indique qu'ils partagent un même octet, donc il faut les recomposer.
+
+- Pour mysensor_comp_temp, mysensor_comp_press et mysensor_comp_hum, on a repris les formules de compensation en entiers données dans la datasheet. Les valeurs brutes lues sur le capteur ne sont pas utilisables telles quelles, il faut les corriger avec les paramètres de calibration. La température se calcule en premier car elle donne t_fine, dont dépendent la pression et l'humidité. On renvoie tout en milli-unités (m°C, Pa, milli-%RH) pour que ça colle avec mysensor_to_q31 qui était déjà fournie.
+
+- Pour mysensor_read_raw, on attend que le capteur soit prêt avec mysensor_wait_until_ready (déjà écrite), puis on lit les 8 octets d'un coup à partir de MYSENSOR_REG_PRESS_MSB. D'après la datasheet, la pression et la température sont sur 20 bits (3 octets), et l'humidité sur 16 bits (2 octets), donc on assemble les octets avec des décalages (<<) pour retrouver chaque valeur.
+
+- mysensor_measure enchaîne mysensor_read_raw puis les trois compensations (température en premier), et stocke les résultats dans dev->data. On l'a créée pour ne pas écrire deux fois la même chose, car elle sert à la fois à sample_fetch et à mysensor_read_work.
+
+- Pour mysensor_read_work, la fonction fait une mesure avec mysensor_measure, puis remplit le buffer en suivant la structure déjà indiquée dans le code : timestamp (8 octets), puis température à +8, pression à +12 et humidité à +16. C'est cohérent avec le switch case de mysensor_decode qui relit ces mêmes positions.
+
+- Pour mysensor_init :
+    - On vérifie le bus i2c avec mysensor_bus_check ;
+    - On lit le registre MYSENSOR_REG_ID et on le compare à MYSENSOR_CHIP_ID ;
+    - On fait le reset en écrivant MYSENSOR_CMD_SOFT_RESET dans MYSENSOR_REG_RESET, puis on attend et on utilise mysensor_wait_until_ready ;
+    - On récupère les paramètres de calibration avec mysensor_get_calib ;
+    - On configure CTRL_HUM, puis CONFIG, puis CTRL_MEAS en dernier, car la datasheet indique que CTRL_HUM n'est pris en compte qu'après une écriture dans CTRL_MEAS ;
+    - À chaque étape on renvoie l'erreur si elle échoue.
+
+
+## Difficultés rencontrées
+On a rencontré plusieurs difficultés pendant le TP.
+- Le timing : le TP était assez long par rapport au temps qu’on avait pour le faire. Il y avait beaucoup de nouvelles notions à comprendre (même si le dummy a été fait avant), donc on n’avait pas forcément le temps de tout chercher et tout comprendre seuls. Pour avancer plus rapidement et comprendre certaines choses, on a donc dû utiliser l’IA pour nous expliquer les notions et nous aider à débloquer certaines erreurs.
+- Trouver les bonnes informations : c’était parfois compliqué de savoir quoi chercher et où chercher. Il y avait énormément de fonctions et d’API dans tous les sens, donc il fallait réussir à trouver la bonne fonction et comprendre à quoi elle servait.
+- Comprendre le fonctionnement d’un driver Zephyr : au début, la structure du driver était assez difficile à comprendre. Il fallait faire le lien entre le .c, le .h, le DeviceTree, le fichier de configuration et les différentes fonctions de Zephyr.
+- RTIO et les buffers : la partie RTIO était aussi assez nouvelle. Il fallait comprendre comment une mesure était récupérée, placée dans un buffer, puis relue avec les bons offsets pour récupérer la température, la pression et l’humidité.

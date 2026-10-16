@@ -1,0 +1,9 @@
+&i2c1 {
+    status = "okay";
+
+    bme280: bme280@76 {
+        compatible = "bosh,my_bme280";
+        reg = <0x76>;
+        status = "okay";
+    };
+};

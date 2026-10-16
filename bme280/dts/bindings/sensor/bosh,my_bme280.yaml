@@ -1,6 +1,3 @@
-description: Capteur de temperature simule pour un TP
-
-// TODO: complete compatible and include
-
-properties:
-  // TODO: add 2 properties: initial-millicelsius and maximum-millicelsius
+description: Bosch BME280 temperature, pressure and humidity sensor
+compatible: "bosh,my_bme280"
+include: [sensor-device.yaml, i2c-device.yaml]
