@@ -1,9 +1,9 @@
-/ {
-    my_bme280: simulated-temperature {
-        compatible = "bosch,my-bme280";
-        status = "okay";
+&sixtron_i2c {
+    status = "okay";
 
-        initial-millicelsius = <0>;
-        maximum-millicelsius = <65000>;
+    my_bme280: sensor@76 {
+        compatible = "bosch,my-bme280";
+        reg = <0x76>;
+        status = "okay";
     };
 };

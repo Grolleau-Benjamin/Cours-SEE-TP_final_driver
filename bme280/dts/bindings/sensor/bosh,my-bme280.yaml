@@ -1,5 +1,5 @@
 description: Capteur de temperature BME280
 
-compatible: "bosch,my_bme280"
+compatible: "bosch,my-bme280"
 
 include : [sensor-device.yaml, i2c-device.yaml]

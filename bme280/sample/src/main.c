@@ -3,9 +3,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-#define SENSOR_NODE DT_NODELABEL(my_sensor)
+#define SENSOR_NODE DT_NODELABEL(my_bme280)
 
-SENSOR_DT_READ_IODEV(temp_iodev, SENSOR_NODE, {SENSOR_CHAN_AMBIENT_TEMP, 0});
+SENSOR_DT_READ_IODEV(temp_iodev, SENSOR_NODE, {SENSOR_CHAN_AMBIENT_TEMP,0}, {SENSOR_CHAN_HUMIDITY,0}, {SENSOR_CHAN_PRESS,0});
 RTIO_DEFINE(temp_rtio, 1, 1);
 
 int main(void)

@@ -39,14 +39,14 @@
 #define MYSENSOR_Q31_SHIFT 0 // TODO: definir un shift
 #define MYSENSOR_FRAME_SIZE 20
 
-struct my_bme280_config
+struct mysensor_config
 {
 	// TODO
 	struct i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
-struct my_bme280_data
+struct mysensor_data
 {
 	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
 	uint16_t dig_t1;
@@ -67,6 +67,12 @@ struct my_bme280_data
 	int16_t dig_h4;
 	int16_t dig_h5;
 	int8_t dig_h6;
+};
+
+struct mysensor_raw {
+	int32_t pressure;
+	int32_t temperature;
+	int32_t humidity;
 };
 
 #endif

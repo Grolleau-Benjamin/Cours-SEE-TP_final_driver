@@ -1,4 +1,4 @@
-#define DT_DRV_COMPAT /* TODO */
+#define DT_DRV_COMPAT bosch_my_bme280/* TODO */
 
 // TODO : toutes les fonctions ne sont pas notées. il manque les fonctions de
 // - recuperation des parametres de compensation
@@ -20,31 +20,36 @@ LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 
 #define MYSENSOR_START_UP_TIME_MS 2
 
+static int32_t mysensor_compensate_temp(const struct mysensor_data *data, int32_t adc,
+     int32_t *t_fine)
+{
+ int64_t delta = (adc >> 4) - data->dig_t1;
+ int64_t var1 = (((adc >> 3) - (int64_t)data->dig_t1 * 2) * data->dig_t2) >> 11;
+ int64_t var2 = (((delta * delta) >> 12) * data->dig_t3) >> 14;
+
+ *t_fine = (int32_t)(var1 + var2);
+ /* La formule donne des centiemes de degre ; le buffer contient des milliemes. */
+ return (int32_t)((((int64_t)*t_fine * 5 + 128) >> 8) * 10);
+}
+
 static inline int mysensor_bus_check(const struct device *dev)
 {
-	/* TODO : vérifier que le bus I2C est prêt. */
-	if (i2c_is_ready_dt(&dev->config->i2c))
-	{
-		return 0;
-	}
-	else
-	{
-		return -ENODEV;
-	}
+	const struct mysensor_config *cfg = dev->config;
+	return i2c_is_ready_dt(&cfg->i2c) ? 0 : -ENODEV;
 }
 
 static inline int mysensor_reg_read(const struct device *dev,
-									uint8_t start, uint8_t *buf, int size)
+				    uint8_t start, uint8_t *buf, int size)
 {
-	/* TODO : lire le registre */
-	return i2c_burst_read_dt(&dev->config->i2c, start, buf, size);
+	const struct mysensor_config *cfg = dev->config;
+	return i2c_burst_read_dt(&cfg->i2c, start, buf, size);
 }
 
 static inline int mysensor_reg_write(const struct device *dev,
-									 uint8_t reg, uint8_t val)
+				     uint8_t reg, uint8_t val)
 {
-	/* TODO : écrire val dans le registre reg. */
-	return i2c_reg_write_byte_dt(&dev->config->i2c, reg, val);
+	const struct mysensor_config *cfg = dev->config;
+	return i2c_reg_write_byte_dt(&cfg->i2c, reg, val);
 }
 
 static int mysensor_wait_until_ready(const struct device *dev,
@@ -54,10 +59,12 @@ static int mysensor_wait_until_ready(const struct device *dev,
 	 * TODO : attendre avec timeout que les bits MEASURING
 	 * et IM_UPDATE de MYSENSOR_REG_STATUS soient à zéro.
 	 */
-	int status_value = i2c_reg_read_byte_dt(&dev->config->i2c, MYSENSOR_REG_STATUS, &status);
+	const struct mysensor_config *cfg = dev->config;
+	uint8_t status;
 	int ret;
+	int status_value = i2c_reg_read_byte_dt(&cfg->i2c, MYSENSOR_REG_STATUS, &status);
 	while(((status_value & (MYSENSOR_STATUS_MEASURING | MYSENSOR_STATUS_IM_UPDATE)) != 0) && (timeout.ticks > 0)){
-		ret = i2c_reg_read_byte_dt(&dev->config->i2c, MYSENSOR_REG_STATUS, &status);
+		ret = i2c_reg_read_byte_dt(&cfg->i2c, MYSENSOR_REG_STATUS, &status);
 		k_msleep(3);
 	}
 	if(ret)return 0;
@@ -87,9 +94,9 @@ static int mysensor_read_raw(const struct device *dev,
 	if(ret != 0){
 		return ret;
 	}
-	raw->pressure = buffer[0] << 8 | buffer[1];
-	raw->temperature = buffer[3] << 8 | buffer[4];
-	raw->humidity = buffer[6] << 8 | buffer[7];
+	raw->pressure    = ((int32_t)buffer[0] << 12) | ((int32_t)buffer[1] << 4) | (buffer[2] >> 4);
+    raw->temperature = ((int32_t)buffer[3] << 12) | ((int32_t)buffer[4] << 4) | (buffer[5] >> 4);
+    raw->humidity    = ((int32_t)buffer[6] << 8)  | buffer[7];
 	return 0;
 }
 
@@ -110,11 +117,57 @@ static bool mysensor_channel_supported(struct sensor_chan_spec channel)
 		return false;
 	}
 }
+static int mysensor_read_cal(const struct device *dev)
+{
+    struct mysensor_data *data = dev->data;
+    uint8_t b1[24], h1, b2[7];
+    int ret;
+
+    ret = mysensor_reg_read(dev, 0x88, b1, sizeof(b1));   /* T1..T3, P1..P9 */
+    if (ret != 0) {
+        return ret;
+    }
+    ret = mysensor_reg_read(dev, 0xA1, &h1, 1);           /* H1 */
+    if (ret != 0) {
+        return ret;
+    }
+    ret = mysensor_reg_read(dev, 0xE1, b2, sizeof(b2));   /* H2..H6 */
+    if (ret != 0) {
+        return ret;
+    }
+
+    // Température
+    data->dig_t1 = sys_get_le16(&b1[0]);
+    data->dig_t2 = (int16_t)sys_get_le16(&b1[2]);
+    data->dig_t3 = (int16_t)sys_get_le16(&b1[4]);
+
+    // Pression
+    data->dig_p1 = sys_get_le16(&b1[6]);
+    data->dig_p2 = (int16_t)sys_get_le16(&b1[8]);
+    data->dig_p3 = (int16_t)sys_get_le16(&b1[10]);
+    data->dig_p4 = (int16_t)sys_get_le16(&b1[12]);
+    data->dig_p5 = (int16_t)sys_get_le16(&b1[14]);
+    data->dig_p6 = (int16_t)sys_get_le16(&b1[16]);
+    data->dig_p7 = (int16_t)sys_get_le16(&b1[18]);
+    data->dig_p8 = (int16_t)sys_get_le16(&b1[20]);
+    data->dig_p9 = (int16_t)sys_get_le16(&b1[22]);
+
+    // Humidité
+    data->dig_h1 = h1;
+    data->dig_h2 = (int16_t)sys_get_le16(&b2[0]);
+    data->dig_h3 = b2[2];
+    data->dig_h4 = (int16_t)(((int16_t)(int8_t)b2[3] << 4) | (b2[4] & 0x0F));
+    data->dig_h5 = (int16_t)(((int16_t)(int8_t)b2[5] << 4) | (b2[4] >> 4));
+    data->dig_h6 = (int8_t)b2[6];
+
+    return 0;
+}
 
 static void mysensor_read_work(struct rtio_iodev_sqe *request)
 {
 	const struct sensor_read_config *read_cfg =
 		request->sqe.iodev->data;
+	const struct mysensor_data *data = read_cfg->sensor->data;
 
 	struct mysensor_raw raw;
 	uint8_t *buffer;
@@ -137,9 +190,11 @@ static void mysensor_read_work(struct rtio_iodev_sqe *request)
 		rtio_iodev_sqe_err(request, ret);
 		return;
 	}
+	int32_t t_fine;
+	int32_t temperature = mysensor_compensate_temp(data, raw.temperature, &t_fine);
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
-	sys_put_le32(raw.temperature, buffer + 8);
+	sys_put_le32((uint32_t) temperature, buffer + 8);
 	sys_put_le32(raw.pressure, buffer + 12);
 	sys_put_le32(raw.humidity, buffer + 16);
 
@@ -245,25 +300,25 @@ static int mysensor_decode(const uint8_t *buffer,
 		/*
 		 * TODO : lire la température brute.
 		 */
-		milli_value = raw->temperature;
-		return -ENOSYS;
+		milli_value = (int32_t)sys_get_le32(buffer + 8);
+		break;
 
 	case SENSOR_CHAN_PRESS:
 		/*
 		 * TODO : lire la pression brute.
 		 */
-		milli_value = raw->pressure;
-		return -ENOSYS;
+		milli_value = (int32_t)sys_get_le32(buffer + 12);
+		break;
 
 	case SENSOR_CHAN_HUMIDITY:
 		/*
 		 * TODO : lire l'humidité brute.
 		 */
-		milli_value = raw->humidity;
-		return -ENOSYS;
+		milli_value = (int32_t)sys_get_le32(buffer + 16);
+		break;
 
 	default:
-		return -ENOTSUP;
+		break;
 	}
 
 	*decoded = (struct sensor_q31_data){0};
@@ -276,6 +331,7 @@ static int mysensor_decode(const uint8_t *buffer,
 	*fit = 1;
 	return 1;
 }
+
 
 static const struct sensor_decoder_api mysensor_decoder_api = {
 	// TODO
@@ -327,6 +383,11 @@ static int mysensor_init(const struct device *dev)
 	}
 
 	ret = mysensor_reg_write(dev, MYSENSOR_REG_CTRL_HUM, MYSENSOR_HUMIDITY_OVER);
+	if(ret != 0){
+		return ret;
+	}
+
+	ret = mysensor_read_cal(dev);
 	if(ret != 0){
 		return ret;
 	}

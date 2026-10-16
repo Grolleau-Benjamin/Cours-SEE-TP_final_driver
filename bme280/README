@@ -8,3 +8,53 @@
 west build -p always -b <board> sample
 west build -t run
 ```
+# Driver Zephyr
+***Théo PAQUEREAU Esteban LANDRY***\
+Ce document liste les difficultés rencontrées lors de la réalisation du tp.
+
+## DUMMY DRIVER
+**static bool my_sensor_channel_supported(struct sensor_chan_spec channel)**\
+Il fallait comparer les attributs de channel avec ceux de la doc Zephyr (SENSOR_CHAN_AMBIENT_TEMP ) pour vérifier que le channel qu'on s'apprete à lire est bien de la température ambiante.\
+Il faut également s'assurer que le deuxièeme attribut de channel (chan_idx) vaut 0 pour qu'il n'y ait pas d'autres channel de lu.
+
+**static int my_sensor_data()**\
+Les différents attributs de la struct sensor_q31_data decoded, la valeur décodé de la température se met dans decoded.readings[0].temperature.
+
+**static int my_sensor_decode()**\
+Conversion en Q31 en plusieurs étapes.\
+D'abord récupération de la température en int32_t.\
+Ensuite passage en int64_t avec l'opération qui va bien (décalage du 1 sur la gauche )\
+Enfin conversion en q31_t.
+
+**Kconfig**\
+Avec la nouvelle version de Zephyr, il faut rajouter la ligne `select SENSOR_ASYNC_API`.\
+Il faut enlever les lignes de consigne avec TODO.
+
+**zephyr,tp-sensor.yaml**\
+Mettre entre guillemets les paramètres du compatible.\
+Il faut enlever les lignes de consigne avec TODO.
+
+***Affichage terminal***
+```
+SeaBIOS (version rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org)
+Booting from ROM..
+*** Booting Zephyr OS build v4.4.0 ***
+Temperature : 10000000ns (23.000000) deg C
+Temperature : 10020000000ns (23.250000) deg C
+Temperature : 20030000000ns (23.500000) deg C
+Temperature : 30040000000ns (23.750000) deg C
+Temperature : 40050000000ns (24.000000) deg C
+```
+
+## DRIVER BME280
+Nous n'avons pas réussi à appliquer la calibration sur les capteurs.\
+Lors de l'affichage des valeurs du capteur, nos valeurs ne sont pas bonnes mais on ne comprend pourquoi.
+
+**CMakeLists.txt (global du projet)**
+Il fallait changer le if par `if(CONFIG_MY_BME280)`.
+
+**app.overlay**
+Il fallait dire que le driver heritait de sixtron_i2c.
+
+**prj.conf**
+Avec la nouvelle version de Zephyr, il faut rajouter la ligne `select SENSOR_ASYNC_API`.
