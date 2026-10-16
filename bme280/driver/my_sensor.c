@@ -29,14 +29,14 @@ static inline int mysensor_bus_check(const struct device *dev)
 static inline int mysensor_reg_read(const struct device *dev,
 									uint8_t start, uint8_t *buf, int size)
 {
-	/* TODO : lire le registre */
+	/* TODO : lire le registre a l'aide de l'i2c present dans dev->cfg */
 	return -ENOSYS;
 }
 
 static inline int mysensor_reg_write(const struct device *dev,
 									 uint8_t reg, uint8_t val)
 {
-	/* TODO : écrire val dans le registre reg. */
+	/* TODO : écrire val dans le registre reg a l'aide de l'i2c present dans dev->cfg */
 	return -ENOSYS;
 }
 
@@ -46,6 +46,7 @@ static int mysensor_wait_until_ready(const struct device *dev,
 	/*
 	 * TODO : attendre avec timeout que les bits MEASURING
 	 * et IM_UPDATE de MYSENSOR_REG_STATUS soient à zéro.
+	 * utiliser un sleep coherent entre les lectures du registre.
 	 */
 	return -ENOSYS;
 }
@@ -55,7 +56,18 @@ static int mysensor_attr_set(const struct device *dev,
 							 enum sensor_attribute attr,
 							 const struct sensor_value *val)
 {
+	// Pas utiliser dans notre cas
 	return -ENOTSUP;
+}
+
+/**
+ * Cette fontion est appelée à l'init et permet de recuperer les 
+ * parametres de compensation du capteur. Ces parametres sont stockés
+ * dans la structure my_bme280_data.
+ */
+static int mysensor_read_calibration(const struct device *dev)
+{
+	return -ENOSYS;
 }
 
 static int mysensor_read_raw(const struct device *dev,
@@ -112,6 +124,8 @@ static void mysensor_read_work(struct rtio_iodev_sqe *request)
 		rtio_iodev_sqe_err(request, ret);
 		return;
 	}
+
+	// TODO : remplir le buffer avec les valeurs brutes compensees et l'horodatage
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
 	sys_put_le32(raw.temperature, buffer + 8);
@@ -218,19 +232,22 @@ static int mysensor_decode(const uint8_t *buffer,
 	{
 	case SENSOR_CHAN_AMBIENT_TEMP:
 		/*
-		 * TODO : lire la température brute.
+		 * TODO : lire la température brute depuis le buffer.
+		 * et la mettre dans milli_value
 		 */
 		return -ENOSYS;
 
 	case SENSOR_CHAN_PRESS:
 		/*
-		 * TODO : lire la pression brute.
+		 * TODO : lire la pression brute depuis le buffer.
+		 * et la mettre dans milli_value
 		 */
 		return -ENOSYS;
 
 	case SENSOR_CHAN_HUMIDITY:
 		/*
-		 * TODO : lire l'humidité brute.
+		 * TODO : lire l'humidité brute depuis le buffer.
+		 * et la mettre dans milli_value
 		 */
 		return -ENOSYS;
 
