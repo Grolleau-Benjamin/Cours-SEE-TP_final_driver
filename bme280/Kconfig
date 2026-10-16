@@ -1,1 +1,7 @@
-// TODO
+menuconfig BME280
+    bool "Capteur de temperature"
+    default y
+    depends on DT_HAS_BOSH_MY_BME280_ENABLED && I2C
+    select SENSOR_ASYNC_API
+    help
+      Active le driver du capteur utilisant Read and Decode.

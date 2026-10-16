@@ -43,10 +43,7 @@
 
 struct my_bme280_config
 {
-	// TODO
-	/**
-	 * i2c bus device
-	 */
+	//TODO
 };
 
 /* Etat propre a chaque instance (mutable) */

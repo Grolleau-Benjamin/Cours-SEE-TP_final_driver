@@ -14,7 +14,7 @@
 #include <zephyr/rtio/work.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "mysensor.h"
+#include "my_sensor.h"
 
 LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -23,6 +23,8 @@ LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 static inline int mysensor_bus_check(const struct device *dev)
 {
 	/* TODO : vérifier que le bus I2C est prêt. */
+	//s'aider de la ligne 283 a 285 pour check l'I2C ready
+
 	return -ENOSYS;
 }
 
