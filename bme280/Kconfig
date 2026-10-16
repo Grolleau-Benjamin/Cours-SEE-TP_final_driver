@@ -1,1 +1,4 @@
-// TODO
+config BME280_MY
+    bool "Capteur de temperature"
+    default y
+    depends on DT_HAS_BOSH_MY_BME280_ENABLED && I2C && SENSOR_ASYNC_API

@@ -33,8 +33,7 @@ int main(void)
 		}
 
 		struct sensor_q31_data temperature;
-		struct sensor_decode_context decode_ctx =
-			SENSOR_DECODE_CONTEXT_INIT(decoder, buffer, SENSOR_CHAN_AMBIENT_TEMP, 0);
+		struct sensor_decode_context decode_ctx = SENSOR_DECODE_CONTEXT_INIT(decoder, buffer, SENSOR_CHAN_AMBIENT_TEMP, 0);
 
 		ret = sensor_decode(&decode_ctx, &temperature, 1);
 		if (ret != 1) {
