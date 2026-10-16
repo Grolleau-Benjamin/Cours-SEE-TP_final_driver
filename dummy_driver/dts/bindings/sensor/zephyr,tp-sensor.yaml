@@ -1,6 +1,13 @@
 description: Capteur de temperature simule pour un TP
 
-// TODO: complete compatible and include
+compatible: "zephyr,tp-sensor"
 
 properties:
-  // TODO: add 2 properties: initial-millicelsius and maximum-millicelsius
+  initial-millicelsius:
+    type: int
+    default: 0
+    description: Initial sensor reading value in m°C
+  maximum-millicelsius:
+    type: int
+    default: 0
+    description: Maximum sensor reading value in m°C

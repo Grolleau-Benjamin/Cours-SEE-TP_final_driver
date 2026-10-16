@@ -9,7 +9,7 @@
 // register
 #define MYSENSOR_REG_PRESS_MSB 0xF7
 #define MYSENSOR_REG_ID 0xD0
-#define MYSENSOR_REG_COMP_START 0x88
+#define MYSENSOR_REG_COMP_START 0x88 // 0x88 : 0x8D (Temp.), 0x8E : 0x9F (Press.)
 #define MYSENSOR_REG_HUM_COMP_PART1 0xA1
 #define MYSENSOR_REG_HUM_COMP_PART2 0xE1
 #define MYSENSOR_REG_STATUS 0xF3
@@ -36,23 +36,47 @@
 #define MYSENSOR_CONFIG_VAL (MYSENSOR_STANDBY | MYSENSOR_FILTER | 0x00)
 #define MYSENSOR_CTRL_MEAS_VAL (MYSENSOR_PRESS_OVER | MYSENSOR_TEMP_OVER | MYSENSOR_MODE_NORMAL)
 
-#define MYSENSOR_Q31_SHIFT 0 // TODO: definir un shift
+#define MYSENSOR_Q31_SHIFT 7 // TODO: definir un shift
 #define MYSENSOR_FRAME_SIZE 20
 
 // TODO: define a raw struct `struct mysensor_raw` that will carry the raw values read from the sensor (temperature, pressure, humidity)
+struct mysensor_raw 
+{
+	int32_t temperature;
+	int32_t pressure;
+	int32_t humidity;
+};
+
 
 struct my_bme280_config
 {
-	// TODO
-	/**
-	 * i2c bus device
-	 */
+	i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
 struct my_bme280_data
 {
 	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
+	uint16_t dig_t1;
+	uint16_t dig_t2;
+	uint16_t dig_t3;
+
+	uint16_t dig_p1;
+	uint16_t dig_p2;
+	uint16_t dig_p3;
+	uint16_t dig_p4;
+	uint16_t dig_p5;
+	uint16_t dig_p6;
+	uint16_t dig_p7;
+	uint16_t dig_p8;
+	uint16_t dig_p9;
+
+	uint16_t dig_h1;
+	uint16_t dig_h2;
+	uint16_t dig_h3;
+	uint16_t dig_h4;
+	uint16_t dig_h5;
+	uint16_t dig_h6;
 };
 
 #endif
