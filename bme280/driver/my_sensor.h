@@ -36,23 +36,65 @@
 #define MYSENSOR_CONFIG_VAL (MYSENSOR_STANDBY | MYSENSOR_FILTER | 0x00)
 #define MYSENSOR_CTRL_MEAS_VAL (MYSENSOR_PRESS_OVER | MYSENSOR_TEMP_OVER | MYSENSOR_MODE_NORMAL)
 
-#define MYSENSOR_Q31_SHIFT 0 // TODO: definir un shift
+#define MYSENSOR_Q31_SHIFT 7 // TODO: definir un shift
 #define MYSENSOR_FRAME_SIZE 20
 
 // TODO: define a raw struct `struct mysensor_raw` that will carry the raw values read from the sensor (temperature, pressure, humidity)
-
-struct my_bme280_config
+struct mysensor_raw
 {
-	// TODO
-	/**
-	 * i2c bus device
-	 */
+    int32_t temperature;
+    int32_t pressure;
+    int32_t humidity;
+};
+
+struct mysensor_config
+{
+    struct i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
-struct my_bme280_data
+struct mysensor_data
 {
-	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
+    uint16_t dig_t1;
+    int16_t dig_t2;
+    int16_t dig_t3;
+
+    uint16_t dig_p1;
+    int16_t dig_p2;
+    int16_t dig_p3;
+    int16_t dig_p4;
+    int16_t dig_p5;
+    int16_t dig_p6;
+    int16_t dig_p7;
+    int16_t dig_p8;
+    int16_t dig_p9;
+
+    uint8_t dig_h1;
+    int16_t dig_h2;
+    uint8_t dig_h3;
+    int16_t dig_h4;
+    int16_t dig_h5;
+    int8_t dig_h6;
+
+    /*
+     * Calcule pendant la compensation de temperature
+     * et necessaire pour la pression et l'humidite.
+     */
+    int32_t t_fine;
 };
 
+//Prototypes des fonctions de compensation                                   
+
+static int32_t mysensor_compensate_temperature(
+    struct mysensor_data *data,
+    int32_t adc_t);
+
+static int32_t mysensor_compensate_pressure(
+    struct mysensor_data *data,
+    int32_t adc_p);
+
+static int32_t mysensor_compensate_humidity(
+    struct mysensor_data *data,
+    int32_t adc_h);
+	
 #endif

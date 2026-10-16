@@ -1,6 +1,8 @@
 description: Capteur de temperature simule pour un TP
 
-# TODO: complete compatible and include
+compatible: "bosch,my-bme280"
+
+include: [sensor-device.yaml, i2c-device.yaml]
 
 properties:
   # TODO: add the propeties you need

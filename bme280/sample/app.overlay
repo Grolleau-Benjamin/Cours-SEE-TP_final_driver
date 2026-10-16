@@ -1,0 +1,9 @@
+&sixtron_connector_1_i2c {
+        status = "okay";
+
+        my_sensor: bme280@76 {
+                compatible = "bosch,my_bme280";
+                reg = <0x76>;
+                status = "okay";
+        };
+};

@@ -1,1 +1,6 @@
-// TODO
+menuconfig MY_SENSOR
+    bool "Driver BME280"
+    select SENSOR_ASYNC_API
+    help
+      Active le driver BME280 utilisant Read and Decode
+      pour mesurer la temperature, la pression et humidite.

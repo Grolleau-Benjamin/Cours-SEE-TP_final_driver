@@ -8,3 +8,64 @@
 west build -p always -b <board> sample
 west build -t run
 ```
+# Compte Rendu Driver BME280 sous Zephyr
+
+## Objectif
+
+L'objectif de ce TP est de compléter un driver pour le capteur BME280 avec Zephyr RTOS.
+
+Le capteur communique en I2C et permet de récupérer :
+
+- la température ;
+- la pression ;
+- l'humidité.
+
+Le driver utilise l'API Sensor de Zephyr avec RTIO / Read and Decode.
+
+## Fonctionnement
+
+Le BME280 est déclaré dans le Devicetree avec le fichier `app.overlay`.
+
+Au démarrage, le driver :
+
+1. vérifie que le bus I2C est disponible ;
+2. vérifie l'identifiant du BME280 ;
+3. effectue un reset du capteur ;
+4. récupère les paramètres de calibration ;
+5. configure le capteur.
+
+Ensuite, les valeurs brutes de température, pression et humidité sont lues puis compensées avec les paramètres de calibration du BME280.
+
+La température est compensée en premier car elle permet de calculer `t_fine`, utilisé ensuite pour la pression et l'humidité.
+
+Les trois mesures sont regroupées dans une trame de 20 octets :
+
+- 8 octets : timestamp ;
+- 4 octets : température ;
+- 4 octets : pression ;
+- 4 octets : humidité.
+
+Les données sont ensuite décodées avec l'API Sensor de Zephyr.
+
+Une nouvelle lecture est effectuée toutes les 20 secondes.
+
+## Résultat
+
+Les trois valeurs sont correctement récupérées et affichées sur le port série.
+
+Exemple :
+Temperature : 27.949999 deg C
+Pression    : 102.039999 kPa
+Humidite    : 49.488999 %
+
+Les valeurs évoluent entre les différentes lectures, ce qui montre que le capteur fonctionne correctement.
+
+## Difficultés rencontrées
+
+Les principales difficultés ont été la configuration du BME280 dans le Devicetree, l'utilisation de l'API RTIO de Zephyr et la compensation des valeurs brutes avec les paramètres de calibration.
+
+On a également rencontré un problème lors du flash avec J-Link ainsi qu'avec l'affichage sur le port série. Après correction de la configuration, le programme a pu être flashé et les mesures ont été affichées correctement.
+
+## Conclusion
+
+Le driver BME280 fonctionne correctement. Il permet de lire la température, la pression et l'humidité via I2C et d'afficher les mesures toutes les 20 secondes.
