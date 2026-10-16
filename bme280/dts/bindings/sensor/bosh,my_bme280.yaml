@@ -1,6 +1,11 @@
 description: Capteur de temperature simule pour un TP
 
 # TODO: complete compatible and include
+description: Capteur de temperature simule pour un TP
+
+compatible: "zephyr,tp-sensor"
+
+include: ["sensor-device.yaml", i2c-device.yaml]
 
 properties:
   # TODO: add the propeties you need

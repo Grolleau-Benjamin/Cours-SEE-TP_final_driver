@@ -40,6 +40,11 @@
 #define MYSENSOR_FRAME_SIZE 20
 
 // TODO: define a raw struct `struct mysensor_raw` that will carry the raw values read from the sensor (temperature, pressure, humidity)
+struct mysensor_raw{
+	uint32_t temperature;
+	uint32_t pressure;
+	uint32_t humidity;
+};
 
 struct my_bme280_config
 {
@@ -47,12 +52,34 @@ struct my_bme280_config
 	/**
 	 * i2c bus device
 	 */
+	const struct i2c_dt_spec i2c;
 };
 
 /* Etat propre a chaque instance (mutable) */
 struct my_bme280_data
 {
 	// TODO all parameters to compensate the raw values (dig_t[1:3], dig_p[1:9], dig_h[1:6])
+	uint16_t dig_t1;
+	uint16_t dig_t2;
+	uint16_t dig_t3;
+
+	uint16_t dig_p1;
+	uint16_t dig_p2;
+	uint16_t dig_p3;
+	uint16_t dig_p4;
+	uint16_t dig_p5;
+	uint16_t dig_p6;
+	uint16_t dig_p7;
+	uint16_t dig_p8;
+	uint16_t dig_p9;
+
+	uint16_t dig_h1;
+	uint16_t dig_h2;
+	uint16_t dig_h3;
+	uint16_t dig_h4;
+	uint16_t dig_h5;
+	uint16_t dig_h6;
+
 };
 
 #endif
