@@ -23,13 +23,20 @@ LOG_MODULE_REGISTER(MYSENSOR, CONFIG_SENSOR_LOG_LEVEL);
 static inline int mysensor_bus_check(const struct device *dev)
 {
 	/* TODO : vérifier que le bus I2C est prêt. */
-	return -ENOSYS;
+	if (i2c_is_ready_dt(i2c_dt_spec_get(dev)))
+	{
+		return 0;
+	}
+	
+
+	return 1;
 }
 
 static inline int mysensor_reg_read(const struct device *dev,
 									uint8_t start, uint8_t *buf, int size)
 {
 	/* TODO : lire le registre a l'aide de l'i2c present dans dev->cfg */
+	i2c_read(dev->cfg->i2c, buf, size, start);
 	return -ENOSYS;
 }
 
@@ -37,7 +44,8 @@ static inline int mysensor_reg_write(const struct device *dev,
 									 uint8_t reg, uint8_t val)
 {
 	/* TODO : écrire val dans le registre reg a l'aide de l'i2c present dans dev->cfg */
-	return -ENOSYS;
+	i2c_write(dev->cfg->i2c, reg, val);
+	return 0;
 }
 
 static int mysensor_wait_until_ready(const struct device *dev,
@@ -48,7 +56,18 @@ static int mysensor_wait_until_ready(const struct device *dev,
 	 * et IM_UPDATE de MYSENSOR_REG_STATUS soient à zéro.
 	 * utiliser un sleep coherent entre les lectures du registre.
 	 */
-	return -ENOSYS;
+
+	while(timeout.ticks > 0){
+		uint8_t status;
+		mysensor_reg_read(dev, MYSENSOR_REG_STATUS, &status, 1);
+		if((status & (MYSENSOR_STATUS_MEASURING | MYSENSOR_STATUS_IM_UPDATE)) == 0){
+			return 0; //ready
+		}
+		k_sleep(K_MSEC(1)); //verif toutes les 1 ms
+		timeout.ticks--;
+	}
+
+	return 1;
 }
 
 static int mysensor_attr_set(const struct device *dev,
@@ -77,7 +96,16 @@ static int mysensor_read_raw(const struct device *dev,
 	 * TODO : attendre que le capteur soit prêt, lire les 8 octets
 	 * depuis MYSENSOR_REG_PRESS_MSB et extraire les trois valeurs.
 	 */
-	return -ENOSYS;
+
+	uint32_t *buf;
+	if(mysensor_wait_until_ready(dev,K_MSEC(1000)) == 0){
+		mysensor_reg_read(dev,MYSENSOR_REG_PRESS_MSB,buf,8);
+		raw.pressure = buf & (0xFF);
+		raw.temperature = buf & (0xFF<<8);
+		raw.humidity = buf & (0xFF<<16);
+		return 0;
+	}
+	return 1;
 }
 
 static bool mysensor_channel_supported(struct sensor_chan_spec channel)
@@ -126,6 +154,7 @@ static void mysensor_read_work(struct rtio_iodev_sqe *request)
 	}
 
 	// TODO : remplir le buffer avec les valeurs brutes compensees et l'horodatage
+
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
 	sys_put_le32(raw.temperature, buffer + 8);
@@ -287,7 +316,29 @@ static int mysensor_init(const struct device *dev)
 	 * puis configurer CTRL_HUM, CONFIG et CTRL_MEAS.
 	 * Respecter les délais et propager les erreurs.
 	 */
-	return -ENOSYS;
+
+	uint8_t chip_id;
+    int ret;
+	uint32_t buf;
+
+    ret = mysensor_bus_check(dev);
+    if (ret != 0) {
+        return 1;
+    }
+
+	ret = mysensor_reg_read(dev, MYSENSOR_REG_CHIP_ID, &chip_id, 1);
+    if (ret != 0) {
+        return 1;
+    }
+
+	ret = mysensor_reg_write(dev, MYSENSOR_REG_RESET, MYSENSOR_CMD_SOFT_RESET);
+    if (ret != 0) {
+        return 1;
+    }
+
+	mysensor_reg_read(dev,MYSENSOR_REG_HUM_COMP_PART1,buf,25);
+	
+	return 0;
 }
 
 static DEVICE_API(sensor, mysensor_driver_api) = {

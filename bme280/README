@@ -8,3 +8,8 @@
 west build -p always -b <board> sample
 west build -t run
 ```
+##Compte-rendu
+
+- Nous avons manqué de temps malgré une compréhension globale de ce qui était demandé.
+- Les consignes étaient claires mais nous avions des difficultés à trouver les outils à notre disposition (par exemple la doc du capteur bme280).
+- On a perdu beaucoup de temps pour comprendre. Mais ce que nous avons pu faire, nous avons compris.

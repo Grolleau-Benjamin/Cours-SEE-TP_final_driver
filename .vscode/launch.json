@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/luna/Dev/6tron-workspace/app_workspace/Cours-SEE-TP_final_driver/bme280/driver",
+      "program": "/Users/luna/Dev/6tron-workspace/app_workspace/Cours-SEE-TP_final_driver/bme280/driver/build/Debug/outDebug"
+    }
+  ]
+}

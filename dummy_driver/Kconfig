@@ -1,6 +1,8 @@
-menuconfig MY_SENSOR
-    bool "Capteur de temperature simulé"
-    // TODO: complete
+config MY_SENSOR
+    bool "Capteur de temperature simule"
+    default y
+    select SENSOR
+    select SENSOR_ASYNC_API
     help
       Active le driver du capteur simule utilisant Read and Decode.
 
