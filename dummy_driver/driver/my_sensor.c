@@ -15,7 +15,9 @@
  */
 static bool my_sensor_channel_supported(struct sensor_chan_spec channel)
 {
-	return 0; // TODO: complete
+
+	return ((channel.chan_type == SENSOR_CHAN_AMBIENT_TEMP) && (channel.chan_idx ==0));
+
 }
 
 static int my_sensor_init(const struct device *dev)
@@ -63,6 +65,20 @@ static void my_sensor_submit(const struct device *dev, struct rtio_iodev_sqe *re
 	 * 1. get the temperature
 	 * 2. write the next temp but check the maximum value
 	 */
+
+	uint32_t temperature_mc= data->next_mc;
+
+	if((data->next_mc + CONFIG_MY_SENSOR_STEP_MC) > cfg->maximum_mc)
+	{
+		data->next_mc = cfg->maximum_mc;
+	}else{
+		data->next_mc =  data->next_mc + CONFIG_MY_SENSOR_STEP_MC;
+	}
+
+
+
+
+
 
 	sys_put_le64(k_ticks_to_ns_floor64(k_uptime_ticks()), buffer);
 	sys_put_le32((uint32_t)temperature_mc, buffer + 8);
@@ -124,6 +140,16 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 	 * Calcul intermediaire sur 64 bits.
 	 */
 	// TODO: complete the conversion and assign to decoded->readings[0].temperature
+	
+	struct sensor_q31_data *decoded = output;
+	int32_t temperature_mc = (int32_t)sys_get_le32(buffer + 8);
+
+	decoded->header.base_timestamp_ns = sys_get_le64(buffer);
+	decoded->header.reading_count = 1;
+	decoded->shift = MY_SENSOR_Q31_SHIFT;
+	decoded->readings[0].timestamp_delta = 0;
+	decoded->readings[0].temperature = (int32_t)((int64_t)temperature_mc*(INT64_C(1) << (31 - MY_SENSOR_Q31_SHIFT))/1000);
+	
 	*fit = 1;
 
 	/* Nombre de mesures decodees. */
@@ -132,6 +158,9 @@ static int my_sensor_decode(const uint8_t *buffer, struct sensor_chan_spec chann
 
 static const struct sensor_decoder_api my_sensor_decoder = {
 	// TODO: assign the function pointers
+	.get_frame_count	= my_sensor_get_frame_count,
+	.get_size_info		= my_sensor_get_size_info,
+	.decode 			= my_sensor_decode,
 };
 
 static int my_sensor_get_decoder(const struct device *dev,
@@ -139,20 +168,27 @@ static int my_sensor_get_decoder(const struct device *dev,
 {
 	ARG_UNUSED(dev);
 
+
+	*decoder = &my_sensor_decoder;
 	// TODO: assign the address of my_sensor_decoder to *decoder
+
 
 	return 0;
 }
 
 static DEVICE_API(sensor, my_sensor_api) = {
 	// TODO: assign the function pointers
+	.submit = my_sensor_submit,
+	.get_decoder = my_sensor_get_decoder,
+
 };
 
 #define MY_SENSOR_DEFINE(inst)                                                       \
 	static struct my_sensor_data my_sensor_data_##inst;                              \
                                                                                      \
-	static const struct my_sensor_config my_sensor_config_##inst = {                 \
-		/* TODO : assign the properties from the device tree to the config struct */ \
+	static const struct my_sensor_config my_sensor_config_##inst = {        		 \
+		.initial_mc = DT_INST_PROP(inst,initial_millicelsius),						 \
+		.maximum_mc = DT_INST_PROP(inst,maximum_millicelsius),						 \
 	};                                                                               \
                                                                                      \
 	SENSOR_DEVICE_DT_INST_DEFINE(inst, my_sensor_init, NULL, &my_sensor_data_##inst, \
